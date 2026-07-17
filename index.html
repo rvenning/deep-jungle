@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Deep Jungle 🌿 — Lost City Adventure</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a1f14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deep Jungle">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/gk-base.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+</head>
+<body>
+
+<!-- Splash -->
+<div class="screen active" id="screen-splash">
+  <div class="splash-inner">
+    <div class="splash-leaves" aria-hidden="true"><span>🌿</span><span>🍃</span><span>🌴</span><span>🦜</span><span>🌺</span></div>
+    <h1 class="logo">DEEP<span>JUNGLE</span></h1>
+    <p class="tagline">Explore. Find secrets. Discover the lost city!</p>
+    <button class="btn big" id="btn-continue-as" style="display:none"></button>
+    <button class="btn big green" id="btn-start" onclick="App.play()">🌿 Start Exploring</button>
+    <button class="btn ghost" id="btn-install" style="display:none">📲 Add to Home Screen</button>
+    <p class="keys-hint">⌨️ Arrows/WASD move · Space jump · X slash · C boomerang</p>
+    <div class="splash-foot">
+      <span id="sync-badge">…</span>
+      <button class="btn-sound iconbtn">🔊</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile picker (roster + PIN modals rendered by GK.Profiles) -->
+<div class="screen" id="screen-profiles">
+  <header class="topbar">
+    <button class="iconbtn" onclick="App.showScreen('splash')">←</button>
+    <h2 class="grow">Who's exploring?</h2>
+    <button class="btn-sound iconbtn">🔊</button>
+  </header>
+  <div class="content">
+    <div class="profile-list" id="profile-list"></div>
+  </div>
+</div>
+
+<!-- World map -->
+<div class="screen" id="screen-map">
+  <header class="topbar">
+    <button class="iconbtn" onclick="App.play()">👥</button>
+    <div class="map-player grow" id="map-player"></div>
+    <span class="map-stat" id="map-stars"></span>
+    <span class="map-stat" id="map-pct"></span>
+    <button class="iconbtn" onclick="App.showBook()">📖</button>
+    <button class="iconbtn" onclick="App.showLeaderboard()">🏆</button>
+  </header>
+  <div class="content">
+    <button class="btn big wide continue" id="btn-continue"></button>
+    <div id="world-list"></div>
+  </div>
+</div>
+
+<!-- Explorer's journal (collection) -->
+<div class="screen" id="screen-book">
+  <header class="topbar">
+    <button class="iconbtn" onclick="App.showMap()">←</button>
+    <h2 class="grow">📖 Explorer's Journal</h2>
+    <span class="map-stat" id="book-pct"></span>
+  </header>
+  <div class="content">
+    <h3 class="book-h">🎒 Equipment</h3>
+    <div id="book-tools"></div>
+    <h3 class="book-h">📜 Journal Pages</h3>
+    <div id="book-pages"></div>
+  </div>
+</div>
+
+<!-- Leaderboard -->
+<div class="screen" id="screen-leaderboard">
+  <header class="topbar">
+    <button class="iconbtn" onclick="App.showMap()">←</button>
+    <h2 class="grow">🏆 Family Explorers</h2>
+    <button class="btn-sound iconbtn">🔊</button>
+  </header>
+  <div class="content">
+    <div class="lb-rows" id="lb-rows"></div>
+  </div>
+</div>
+
+<!-- Game -->
+<div class="screen" id="screen-game">
+  <header class="gamebar">
+    <button class="iconbtn small" onclick="Game.pause()">⏸</button>
+    <span class="hud name" id="hud-level"></span>
+    <span class="hud hearts" id="hud-hearts">♥♥♥</span>
+    <span class="hud" id="hud-gems"></span>
+    <span class="hud" id="hud-keys"></span>
+    <span class="hud tools" id="hud-tools"></span>
+    <span class="hud score" id="hud-score">0</span>
+  </header>
+  <div class="game-stage">
+    <canvas id="cv"></canvas>
+    <div class="tc tc-left" aria-hidden="true">
+      <button id="tc-up" class="tcb up">▲</button>
+      <button id="tc-left" class="tcb left">◀</button>
+      <button id="tc-right" class="tcb right">▶</button>
+      <button id="tc-down" class="tcb down">▼</button>
+    </div>
+    <div class="tc tc-right" aria-hidden="true">
+      <button id="tc-rang" class="tcb act" style="display:none">🪃</button>
+      <button id="tc-slash" class="tcb act" style="display:none">⚔️</button>
+      <button id="tc-jump" class="tcb act jump">🦘</button>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div class="screen" id="screen-results">
+  <div class="res-inner">
+    <div class="res-emoji" id="res-emoji">🎉</div>
+    <h2 class="res-title" id="res-title"></h2>
+    <div class="res-stars" id="res-stars"></div>
+    <div class="res-score" id="res-score"></div>
+    <div class="res-stats" id="res-stats"></div>
+    <p class="res-hint" id="res-hint"></p>
+    <p class="res-finished" id="res-finished" style="display:none">👑 You found the Lost City and finished the whole adventure! The jungle will never forget you.</p>
+    <div class="res-actions">
+      <button class="btn ghost" onclick="App.showMap()">🗺️ Map</button>
+      <button class="btn" id="res-retry" style="display:none"></button>
+      <button class="btn green" id="res-next" style="display:none"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Pause modal -->
+<div class="modal" id="modal-pause">
+  <div class="sheet">
+    <h2>⏸ Paused</h2>
+    <div class="row-btns2">
+      <button class="btn green" onclick="Game.resume()">▶️ Resume</button>
+      <button class="btn grey" onclick="Game.quitToMap()">🗺️ Quit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Journal page modal -->
+<div class="modal" id="modal-journal">
+  <div class="sheet journal-sheet">
+    <h2>📜 Lost Journal</h2>
+    <p class="journal-text" id="journal-text"></p>
+    <button class="btn wide" onclick="App.closeGameModal('modal-journal')">Keep exploring ▶</button>
+  </div>
+</div>
+
+<!-- Tool found modal -->
+<div class="modal" id="modal-tool">
+  <div class="sheet">
+    <div class="tool-big" id="tool-icon">🔪</div>
+    <h2 id="tool-name"></h2>
+    <p id="tool-desc"></p>
+    <button class="btn green wide" onclick="App.closeGameModal('modal-tool')">Awesome! ▶</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- gamekit (vendored from rvenning/gamekit into lib/) -->
+<script src="lib/gk-util.js"></script>
+<script src="lib/gk-audio.js"></script>
+<script src="lib/gk-ui.js"></script>
+<script src="lib/gk-storage.js"></script>
+<script src="lib/gk-profiles.js"></script>
+<script src="lib/gk-pwa.js"></script>
+<script src="js/firebase-config.js"></script>
+<!-- data registries -->
+<script src="js/tiles.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/equipment.js"></script>
+<script src="js/levels.js"></script>
+<!-- systems -->
+<script src="js/physics.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/player.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/bosses.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

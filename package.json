@@ -1,0 +1,9 @@
+{
+  "name": "deep-jungle",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Deep Jungle — a family platformer built on gamekit",
+  "scripts": {
+    "test": "node --test"
+  }
+}
