@@ -149,6 +149,14 @@ const PlayerCtl = {
 
     // splash on entering / leaving water
     if (p.inWater && !p.wasInWater && p.vy > 40) { Sfx.splashIn(); Fx.splash(p.x, Math.floor(p.y / TS) * TS); }
+    // dolphin breach — swimming up out of water launches you clear of the
+    // surface (~2 tiles), so ledge climb-outs (waterfall tops!) actually work
+    if (!p.inWater && p.wasInWater && !p.climbing && p.vy < -30) {
+      p.vy = -240;
+      p.sx = 0.78; p.sy = 1.28;
+      Sfx.breach();
+      Fx.splash(p.x, p.y + p.h / 2, "rgba(200,240,255,0.9)", 12);
+    }
     p.wasInWater = p.inWater;
     p.wasGrounded = p.grounded;
 

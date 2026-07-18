@@ -313,6 +313,10 @@ Object.assign(Game, {
           ctx.fillStyle = "rgba(220,245,255,0.18)";
           ctx.fillRect(x + (h2 % 9), y + ((h2 >> 3) % 12), 2, 5);
         }
+        if (above === "~" && (h2 % 5) === 0) { // rising bubbles: "swim up here"
+          ctx.fillStyle = "rgba(235,250,255,0.4)";
+          ctx.fillRect(x + (h2 % 12) + 2, y + 14 - ((t * 22 + h2) % 16), 1.6, 1.6);
+        }
         break;
       }
       case "L": {

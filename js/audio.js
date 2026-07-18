@@ -10,6 +10,8 @@ Object.assign(Sfx, {
              this.noise({ dur: 0.05, vol: 0.06 }); },
   splashIn()  { this.noise({ dur: 0.2, vol: 0.16 });
                 this.tone({ freq: 220, type: "sine", dur: 0.18, vol: 0.1, slide: -120 }); },
+  breach()    { this.noise({ dur: 0.12, vol: 0.1 });
+                this.tone({ freq: 350, type: "sine", dur: 0.14, vol: 0.12, slide: 260 }); },
   climbTick() { this.tone({ freq: 500, type: "triangle", dur: 0.03, vol: 0.05 }); },
 
   /* ---- treasure ---- */
