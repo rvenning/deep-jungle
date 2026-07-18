@@ -201,6 +201,56 @@ const Game = {
     }
 
     this.buildParallax();
+    this.spawnCritters(lv);
+  },
+
+  // Decorative wildlife — birds that flee and butterflies that flutter. No
+  // collision, pure charm. Only in the living worlds (not mines/volcano).
+  spawnCritters(lv) {
+    this.critters = [];
+    if (![0, 1, 2, 5].includes(lv.world)) return;
+    // GK.util.hash2 returns 0-1 floats — scale before integer math
+    const hi = (a, b, m) => Math.floor(GK.util.hash2(a, b) * m);
+    for (let c = 2; c < this.cols - 2; c += 5 + hi(7, c, 5)) {
+      // find the topmost stand-able surface in this column
+      for (let r = 1; r < this.rows - 1; r++) {
+        if (!this.isSolid(c, r)) continue;
+        const t = TILES[this.grid[r][c]] || {};
+        if (t.door || t.barrel || t.switch) break;
+        if (this.isSolid(c, r - 1) || (TILES[this.grid[r - 1][c]] || {}).water) break;
+        const bird = GK.util.hash2(9, c) < 0.4;
+        this.critters.push(bird
+          ? { kind: "bird", x: c * TS + 8, y: r * TS - 5, state: "perch",
+              hue: hi(11, c, 3), t: hi(13, c, 7), flee: 0, dir: 1 }
+          : { kind: "butterfly", x: c * TS + 8, y: r * TS - 16, hx: c * TS + 8, hy: r * TS - 16,
+              hue: hi(11, c, 3), t: hi(13, c, 20) / 3 });
+        break;
+      }
+      if (this.critters.length >= 14) break;
+    }
+  },
+
+  updateCritters(dt) {
+    const p = this.player;
+    for (let i = this.critters.length - 1; i >= 0; i--) {
+      const cr = this.critters[i];
+      cr.t += dt;
+      if (cr.kind === "butterfly") {
+        cr.x = cr.hx + Math.sin(cr.t * 1.1) * 14 + Math.sin(cr.t * 2.7) * 4;
+        cr.y = cr.hy + Math.sin(cr.t * 1.7) * 8 + Math.cos(cr.t * 3.1) * 3;
+      } else if (cr.state === "perch") {
+        if (Math.abs(p.x - cr.x) < 54 && Math.abs(p.y - cr.y) < 48 && !p.dead) {
+          cr.state = "fly"; cr.flee = 0;
+          cr.dir = Math.sign(cr.x - p.x) || 1;
+          Sfx.chirp();
+        }
+      } else { // flying away
+        cr.flee += dt;
+        cr.x += cr.dir * (60 + cr.flee * 50) * dt;
+        cr.y -= (85 + cr.flee * 40) * dt;
+        if (cr.flee > 2.5) this.critters.splice(i, 1);
+      }
+    }
   },
 
   /* ================= world interface (physics queries) ================= */
@@ -312,6 +362,7 @@ const Game = {
 
     this.updateCamera(dt);
     this.updateAmbient(dt);
+    this.updateCritters(dt);
   },
 
   /* ================= tiles the player touches ================= */
@@ -372,6 +423,8 @@ const Game = {
   },
 
   revealFalseWalls(c, r) {
+    // flood the group — and hop 1-cell gaps so a walk-through bush (wall,
+    // treasure, wall) reveals as ONE secret, not two jingles
     const q = [[c, r]];
     while (q.length) {
       const [x, y] = q.pop();
@@ -379,7 +432,8 @@ const Game = {
       if (this.discovered.has(key)) continue;
       if ((this.grid[y] || [])[x] !== "%") continue;
       this.discovered.add(key);
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => q.push([x + dx, y + dy]));
+      [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]]
+        .forEach(([dx, dy]) => q.push([x + dx, y + dy]));
     }
   },
 
@@ -448,7 +502,18 @@ const Game = {
         else Sfx.gem(4 + (this._gemStep % 6));
         this.addScore(def.score, it.x, it.y, def.color);
       }
-      if (def && def.score > 0) { this.treasure++; }
+      if (def && def.score > 0) {
+        this.treasure++;
+        // treasure streaks: keep grabbing without a gap and the game cheers
+        if (this.elapsed - (this._streakT ?? -9) < 1.6) this._streak++;
+        else this._streak = 1;
+        this._streakT = this.elapsed;
+        if (this._streak > 0 && this._streak % 5 === 0) {
+          Fx.text(it.x, it.y - 14, `×${this._streak} streak!`, { color: "#ffd23e", size: 12, life: 1 });
+          Sfx.streak(this._streak / 5);
+          Fx.addShake(1);
+        }
+      }
       Fx.sparkle(it.x, it.y, def ? def.color : "#fff");
       this.updateHud();
     }
@@ -803,9 +868,9 @@ const Game = {
   /* ================= camera ================= */
   updateCamera(dt) {
     const p = this.player;
-    const tx = p.x + p.facing * 26;
+    const tx = p.x + p.facing * 32;              // look-ahead where you're going
     const ty = p.y - 10;
-    this.cam.x += (tx - this.cam.x) * Math.min(1, dt * 5.5);
+    this.cam.x += (tx - this.cam.x) * Math.min(1, dt * 6.5);
     this.cam.y += (ty - this.cam.y) * Math.min(1, dt * 4);
     this.clampCamera();
   },

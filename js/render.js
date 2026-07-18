@@ -6,15 +6,16 @@ Object.assign(Game, {
 
   /* ================= parallax + ambience setup ================= */
   buildParallax() {
-    const u = GK.util;
+    // GK.util.hash2 returns a float 0-1 — scale to ints before any % math
+    const hi = (a, b) => Math.floor(GK.util.hash2(a, b) * 997);
     this.farHills = []; this.midShapes = [];
     const w = Math.max(this.cols * TS, 800);
     for (let x = 0; x < w * 0.5 + 400; x += 70) {
-      this.farHills.push({ x, h: 40 + (u.hash2(1, x) % 50), w: 90 + (u.hash2(2, x) % 60) });
+      this.farHills.push({ x, h: 40 + (hi(1, x) % 50), w: 90 + (hi(2, x) % 60) });
     }
     for (let x = 0; x < w * 0.7 + 400; x += 46) {
-      this.midShapes.push({ x, h: 60 + (u.hash2(3, x) % 70), w: 26 + (u.hash2(4, x) % 22),
-        tree: (u.hash2(5, x) % 10) < 6 });
+      this.midShapes.push({ x, h: 60 + (hi(3, x) % 70), w: 26 + (hi(4, x) % 22),
+        tree: (hi(5, x) % 10) < 6 });
     }
     this.ambientParts = [];
     this._ambT = 0;
@@ -105,6 +106,7 @@ Object.assign(Game, {
     }
     this.renderTiles(ctx, camL, camT, VW, VH, t);
     for (const m of this.movers) this.drawMover(ctx, m);
+    for (const cr of this.critters || []) this.drawCritter(ctx, cr, t);
     for (const it of this.items) if (!it.taken) this.drawItem(ctx, it, t);
     for (const e of this.enemies) if (!e.dead || e.deadT < 0.1) this.drawEnemy(ctx, e, t);
     if (this.boss && this.boss.render) this.boss.render(ctx, t);
@@ -232,8 +234,9 @@ Object.assign(Game, {
   },
 
   drawTile(ctx, ch, c, r, t) {
-    const th = this.theme, u = GK.util;
-    const x = c * TS, y = r * TS, h2 = u.hash2(c, r);
+    const th = this.theme;
+    const x = c * TS, y = r * TS;
+    const h2 = Math.floor(GK.util.hash2(c, r) * 997); // int hash for % decoration
     switch (ch) {
       case "#": case "%": case "=": case "B": case "S": case "O":
       case "T": case "t": case "!": case "D": case "V": case "G": {
@@ -488,6 +491,40 @@ Object.assign(Game, {
     ctx.fillStyle = "#7ef0c0";
     ctx.fillRect(x - 5, y - 9, 10, 2);
     if (Math.random() < 0.1) Fx.sparkle(x, y + Math.random() * 10 - 4, "#7ef0c0", 1);
+  },
+
+  /* ================= wildlife ================= */
+  drawCritter(ctx, cr, t) {
+    ctx.save();
+    ctx.translate(Math.round(cr.x), Math.round(cr.y));
+    if (cr.kind === "butterfly") {
+      const flap = Math.sin(cr.t * 16);
+      const cols = [["#ff8fb3", "#ff5c8a"], ["#8fd0ff", "#5ca8ff"], ["#ffe08a", "#ffc03e"]][cr.hue];
+      ctx.fillStyle = cols[0];
+      ctx.fillRect(-3 - flap, -2, 3, 4);
+      ctx.fillRect(1 + flap, -2, 3, 4);
+      ctx.fillStyle = cols[1];
+      ctx.fillRect(-1, -2, 2, 5);
+    } else {
+      // parrot-ish bird
+      const cols = [["#e84f4f", "#ffd23e"], ["#3fa34d", "#ffe08a"], ["#3f8fe0", "#ff9f43"]][cr.hue];
+      if (cr.dir < 0) ctx.scale(-1, 1);
+      const flap = cr.state === "fly" ? Math.sin(cr.flee * 30) * 3 : 0;
+      const hop = cr.state === "perch" && Math.sin(cr.t * 3) > 0.94 ? -1 : 0;
+      ctx.fillStyle = cols[0];
+      ctx.fillRect(-3, -4 + hop, 6, 6);                       // body
+      ctx.fillRect(1, -7 + hop, 4, 4);                        // head
+      ctx.fillStyle = cols[1];
+      ctx.fillRect(4, -6 + hop, 3, 2);                        // beak
+      ctx.fillRect(-5, -3 + hop - flap, 4, 3);                // wing
+      ctx.fillStyle = "#1a1a1a";
+      ctx.fillRect(2.5, -6 + hop, 1.3, 1.3);                  // eye
+      if (cr.state === "perch") {
+        ctx.fillStyle = "#7a5230";
+        ctx.fillRect(-1, 2, 1, 3); ctx.fillRect(1, 2, 1, 3);  // legs
+      }
+    }
+    ctx.restore();
   },
 
   /* ================= items / tools ================= */
@@ -824,10 +861,11 @@ Object.assign(Game, {
     // head
     ctx.fillStyle = "#e8b98a";
     ctx.fillRect(-3, -8, 7, 5);
-    // eye (blink)
+    // eye (blinks; looks around when idle)
     if (Math.sin(t * 0.7 + 1) > -0.97) {
+      const look = p.idleT > 3 ? Math.sin(p.idleT * 1.2) * 1.6 : 0;
       ctx.fillStyle = "#2a2a2a";
-      ctx.fillRect(2, -7, 1.6, 1.8);
+      ctx.fillRect(2 + look, -7, 1.6, 1.8);
     }
     // explorer hat
     ctx.fillStyle = "#8a6b42";

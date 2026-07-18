@@ -41,6 +41,16 @@ Object.assign(Sfx, {
       this.tone({ freq: f, type: "square", dur: 0.13, vol: 0.12, when: i * 0.09 }));
   },
 
+  streak(tier = 1) {
+    [523, 659, 784, 1047 + tier * 120].forEach((f, i) =>
+      this.tone({ freq: f, type: "triangle", dur: 0.09, vol: 0.15, when: i * 0.05 }));
+  },
+  chirp() {
+    const f = 1500 + Math.random() * 600;
+    this.tone({ freq: f, type: "sine", dur: 0.06, vol: 0.05, slide: 400 });
+    this.tone({ freq: f * 1.2, type: "sine", dur: 0.05, vol: 0.04, when: 0.08, slide: -300 });
+  },
+
   /* ---- secrets ---- */
   secret() {
     [523, 494, 587, 554, 659, 880].forEach((f, i) =>

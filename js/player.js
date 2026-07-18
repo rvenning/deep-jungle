@@ -5,9 +5,9 @@
 
 const PLAYER = {
   W: 10, H: 14,
-  RUN: 112, ACC: 700, DEC: 820, AIR_ACC: 520, AIR_DEC: 160,
-  GRAV: 900, JUMP: -272, JUMP_CUT: -70, MAX_FALL: 330,
-  COYOTE: 0.1, BUFFER: 0.14,
+  RUN: 118, ACC: 780, DEC: 880, AIR_ACC: 640, AIR_DEC: 240,
+  GRAV: 900, JUMP: -278, JUMP_CUT: -70, MAX_FALL: 330,
+  COYOTE: 0.12, BUFFER: 0.14,
   CLIMB: 74,
   SWIM_GRAV: 60, SWIM_THRUST: -150, SWIM_RUN: 78, SWIM_MAX_FALL: 90,
 };
@@ -88,6 +88,11 @@ const PlayerCtl = {
       const acc = p.grounded ? PLAYER.ACC : PLAYER.AIR_ACC;
       const dec = p.grounded ? PLAYER.DEC : PLAYER.AIR_DEC;
       if (dir) {
+        // skid when reversing at speed — dust + a little lean sells the turn
+        if (p.grounded && Math.sign(p.vx) === -dir && Math.abs(p.vx) > 70) {
+          if (Math.random() < dt * 22) Fx.dust(p.x + dir * 4, p.y + p.h / 2, 2);
+          p.sx = Math.max(p.sx, 1.12);
+        }
         p.vx += dir * acc * dt;
         p.facing = dir;
       } else {
@@ -131,6 +136,7 @@ const PlayerCtl = {
         Fx.dust(p.x, p.y + p.h / 2, Math.min(10, 3 + p.vy / 60));
         p.sx = 1.3; p.sy = 0.72;
         Sfx.land();
+        if (p.vy > 270) Fx.addShake(2);            // big fall lands with weight
       }
       p.vy = 0; p.grounded = true;
     } else if (hitV === "ceil") {
@@ -149,5 +155,9 @@ const PlayerCtl = {
     // squash & stretch recovery
     p.sx += (1 - p.sx) * Math.min(1, dt * 12);
     p.sy += (1 - p.sy) * Math.min(1, dt * 12);
+
+    // idle timer feeds the look-around animation in the renderer
+    if (p.grounded && !p.climbing && Math.abs(p.vx) < 5 && !(input.left || input.right)) p.idleT += dt;
+    else p.idleT = 0;
   },
 };
