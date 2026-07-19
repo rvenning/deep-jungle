@@ -127,7 +127,8 @@ const Game = {
     GK.UI.showScreen("game");
     this.resize();          // the stage only has a size once the screen is visible
     this.snapCamera();
-    Music.start(this.level.world, !!this.level.boss);
+    Music.start(this.level.world, !!this.level.boss,
+      WORLDS[this.level.world].levels.indexOf(this.level));
     document.getElementById("tc-rang").style.display = this.hasTool("boomerang") ? "" : "none";
     document.getElementById("tc-slash").style.display = this.hasTool("machete") ? "" : "none";
   },
@@ -891,6 +892,8 @@ const Game = {
   pause() {
     if (!this.running || this.paused || this.won) return;
     this.paused = true;
+    const bm = document.getElementById("btn-music");
+    if (bm) bm.textContent = Music.enabled ? "🎵 Music: On" : "🔇 Music: Off";
     GK.UI.openModal("modal-pause");
   },
   resume() { GK.UI.closeModal("modal-pause"); this.paused = false; this._last = performance.now(); Sfx.click(); },

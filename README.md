@@ -24,6 +24,10 @@ for a legendary lost civilization deep in the jungle.
   collected treasure survives a fall. Stars reward full treasure and secrets.
 - **Data-driven** — levels are ASCII tile maps ([js/levels.js](js/levels.js)),
   tiles/enemies/items are registries; a new level or enemy is one new entry.
+- **Composed backing tracks** — a synthesized theme per world (marimba
+  jungle, flowing waterfalls, mysterious ruins, low mine blues, driving
+  volcano, regal lost city) on a WebAudio lookahead sequencer, with boss
+  variants and a music toggle in the pause menu ([js/audio.js](js/audio.js)).
 - Family profiles with PINs, shared leaderboard, journal collection book,
   completion %, and cross-device sync.
 

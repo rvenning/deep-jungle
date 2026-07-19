@@ -104,53 +104,93 @@ Object.assign(Sfx, {
   },
 });
 
-/* ================= Music + ambience =================
- * A tiny step sequencer: each world gets a bass pattern and a pentatonic lead
- * played on a loop, plus random ambient chirps/drips/rumbles. Boss levels get
- * a driving loop instead. All scheduled with setInterval; muted while paused.
+/* ================= Music =================
+ * Composed backing tracks, one per world, all synthesized. A lookahead
+ * sequencer schedules notes on the WebAudio clock (Sfx.tone's `when`), so
+ * timing is tight even though the pump runs on a sloppy setInterval.
+ *
+ * Track data: 8th-note steps. bass loops 32 steps (4 bars), lead loops 64
+ * (8 bars). Notes are semitones relative to `root` (null = rest). Boss
+ * levels play a driving variant in the same key. The second level of each
+ * world lifts the lead an octave with a soft echo, so worlds evolve.
  */
+const TRACKS = [
+  { // W1 Jungle Trails — bouncy marimba, C major pentatonic
+    bpm: 104, root: 262, leadType: "triangle", bassType: "triangle", drums: "light",
+    bass: [-24,null,null,null,-17,null,-24,null, -24,null,null,null,-17,null,-24,null,
+           -24,null,null,null,-17,null,-24,null, -20,null,null,null,-17,null,-15,null],
+    lead: [4,null,7,null,9,null,null,null,  7,null,9,null,12,null,null,null,
+           9,null,7,null,4,null,2,null,     0,null,null,null,null,null,4,null,
+           4,null,7,null,9,null,null,null,  12,null,null,null,9,null,7,null,
+           9,null,7,null,4,null,2,null,     4,null,null,null,null,null,null,null],
+  },
+  { // W2 Waterfalls — flowing arps, A minor pentatonic
+    bpm: 92, root: 220, leadType: "sine", bassType: "triangle", drums: "none",
+    bass: [-24,null,null,null,null,null,null,null, -14,null,null,null,null,null,null,null,
+           -17,null,null,null,null,null,null,null, -24,null,null,null,-17,null,null,null],
+    lead: [0,3,5,7,10,7,5,3,   0,3,5,7,12,10,7,5,
+           3,5,7,10,12,10,7,5, 0,3,5,3,0,null,null,null,
+           0,3,5,7,10,7,5,3,   5,7,10,12,15,12,10,7,
+           3,5,7,10,7,5,3,0,   0,null,null,null,null,null,null,null],
+  },
+  { // W3 Ancient Ruins — mysterious, exotic scale
+    bpm: 96, root: 262, leadType: "square", bassType: "sine", drums: "light",
+    bass: [-24,null,null,null,null,null,-16,null, -24,null,null,null,null,null,-13,null,
+           -24,null,null,null,null,null,-16,null, -24,null,-16,null,-13,null,-12,null],
+    lead: [0,null,1,null,4,null,null,null,  5,null,4,null,1,null,null,null,
+           0,null,1,null,4,null,7,null,     5,null,null,null,4,null,1,null,
+           8,null,7,null,5,null,4,null,     5,null,4,null,1,null,0,null,
+           1,null,0,null,1,null,4,null,     0,null,null,null,null,null,null,null],
+  },
+  { // W4 Abandoned Mines — slow low blues
+    bpm: 76, root: 165, leadType: "triangle", bassType: "sine", drums: "none",
+    bass: [-12,null,null,null,-9,null,null,null, -7,null,null,null,-6,null,-7,null,
+           -12,null,null,null,-9,null,null,null, -2,null,null,null,-7,null,-12,null],
+    lead: [0,null,null,3,null,5,null,null,  6,null,5,null,3,null,0,null,
+           null,null,10,null,7,null,5,null, 3,null,0,null,null,null,null,null,
+           12,null,null,10,null,7,null,null, 6,null,7,null,5,null,3,null,
+           0,null,3,null,0,null,-2,null,    0,null,null,null,null,null,null,null],
+  },
+  { // W5 Volcano — driving phrygian
+    bpm: 132, root: 220, leadType: "sawtooth", bassType: "sawtooth", drums: "drive",
+    bass: [-24,-24,null,-24,-24,null,-23,null, -24,-24,null,-24,-21,null,-19,null,
+           -24,-24,null,-24,-24,null,-23,null, -19,null,-21,null,-23,null,-24,null],
+    lead: [0,null,0,null,1,null,0,null,   3,null,1,null,0,null,null,null,
+           0,null,0,null,5,null,3,null,   1,null,0,null,1,null,3,null,
+           7,null,5,null,3,null,1,null,   0,null,0,null,1,null,0,null,
+           8,null,7,null,5,null,3,null,   1,null,null,null,0,null,null,null],
+  },
+  { // W6 The Lost City — regal fanfare, G major
+    bpm: 100, root: 196, leadType: "triangle", bassType: "triangle", drums: "light",
+    bass: [-12,null,null,null,-5,null,-8,null, -12,null,null,null,-5,null,-8,null,
+           -10,null,null,null,-5,null,-7,null, -12,null,-8,null,-5,null,-1,null],
+    lead: [0,null,4,null,7,null,12,null,   11,null,12,null,7,null,null,null,
+           9,null,7,null,4,null,5,null,    2,null,4,null,null,null,null,null,
+           0,null,4,null,7,null,12,null,   14,null,12,null,11,null,9,null,
+           7,null,9,null,11,null,12,null,  12,null,null,null,null,null,null,null],
+  },
+];
+
 const Music = {
-  _loop: null, _amb: null, _step: 0, _world: 0, _boss: false,
+  enabled: true,             // separate from Sfx.enabled; persisted in settings
+  _pump: null, _amb: null,
+  _step: 0, _nextT: 0, _trk: null, _boss: false, _lift: false, _vibe: "birds",
 
-  // Patterns: bass = note freqs (0 = rest), lead = pentatonic degrees (null = rest)
-  worlds: [
-    { tempo: 260, base: 262, scale: [0, 2, 4, 7, 9],       bass: [131, 0, 98, 0, 110, 0, 98, 131],  vibe: "birds" },   // jungle — C maj pent
-    { tempo: 300, base: 294, scale: [0, 3, 5, 7, 10],      bass: [110, 0, 87, 0, 98, 0, 110, 0],   vibe: "water" },   // waterfalls — D min pent
-    { tempo: 320, base: 262, scale: [0, 2, 3, 7, 8],       bass: [87, 87, 0, 65, 0, 87, 0, 65],    vibe: "dust" },    // ruins — exotic
-    { tempo: 340, base: 220, scale: [0, 3, 5, 6, 10],      bass: [55, 0, 55, 0, 65, 0, 49, 0],     vibe: "drips" },   // mines — blues
-    { tempo: 240, base: 220, scale: [0, 1, 4, 5, 8],       bass: [55, 55, 58, 58, 49, 49, 62, 62], vibe: "rumble" },  // volcano — phrygian
-    { tempo: 280, base: 330, scale: [0, 2, 4, 7, 9],       bass: [82, 0, 110, 0, 123, 0, 110, 0],  vibe: "wind" },    // lost city — regal
-  ],
-
-  start(worldIdx, boss = false) {
+  start(worldIdx, boss = false, levelInWorld = 0) {
     this.stop();
-    this._world = Math.min(worldIdx, this.worlds.length - 1);
+    const wi = Math.min(worldIdx, TRACKS.length - 1);
+    this._trk = TRACKS[wi];
     this._boss = boss;
+    this._lift = !boss && levelInWorld === 1;   // second level: lead up an octave
+    this._vibe = ["birds", "water", "dust", "drips", "rumble", "wind"][wi];
     this._step = 0;
-    const w = this.worlds[this._world];
-    const tempo = boss ? Math.max(170, w.tempo - 90) : w.tempo;
-    this._loop = setInterval(() => {
-      if (!Sfx.enabled || !Game.active || Game.paused) return;
-      const s = this._step++;
-      const bass = w.bass[s % w.bass.length];
-      if (bass) Sfx.tone({ freq: boss ? bass : bass, type: boss ? "sawtooth" : "triangle", dur: 0.16, vol: boss ? 0.09 : 0.05 });
-      // sparse lead: play on a loose pattern so it feels alive, not looped
-      if (s % 2 === 0 && ((s >> 1) % 4 !== 3 || boss)) {
-        const bar = s >> 3;
-        const deg = w.scale[(s * 7 + bar * 3) % w.scale.length];
-        const oct = ((s * 5 + bar) % 7 === 0) ? 2 : 1;
-        if ((s + bar) % 3 !== 2) {
-          Sfx.tone({ freq: w.base * Math.pow(2, deg / 12) * oct, type: boss ? "square" : "sine",
-                     dur: 0.12, vol: boss ? 0.05 : 0.045, when: 0.02 });
-        }
-      }
-      if (boss && s % 4 === 2) Sfx.noise({ dur: 0.03, vol: 0.03 });
-    }, tempo);
-    // ambience layer
+    this._nextT = Sfx.ctx ? Sfx.ctx.currentTime + 0.15 : 0;
+    this._pump = setInterval(() => this.pump(), 110);
+
     this._amb = setInterval(() => {
       if (!Sfx.enabled || !Game.active || Game.paused || boss) return;
       const r = Math.random();
-      switch (w.vibe) {
+      switch (this._vibe) {
         case "birds":
           if (r < 0.5) { const f = 1400 + Math.random() * 900;
             Sfx.tone({ freq: f, type: "sine", dur: 0.07, vol: 0.03, slide: 300 });
@@ -165,8 +205,72 @@ const Music = {
     }, 900);
   },
 
+  pump() {
+    if (!Sfx.ctx || !this._trk) return;
+    const now = Sfx.ctx.currentTime;
+    if (!Sfx.enabled || !this.enabled || !Game.active || Game.paused) {
+      this._nextT = Math.max(this._nextT, now + 0.15);   // hold place, resume clean
+      return;
+    }
+    const t = this._trk;
+    const bpm = this._boss ? t.bpm * 1.3 : t.bpm;
+    const stepDur = 60 / bpm / 2;                        // 8th notes
+    // fell badly behind (frame hitch, throttled timer)? skip ahead silently
+    // rather than machine-gunning the missed notes
+    while (this._nextT < now - 0.05) { this._step++; this._nextT += stepDur; }
+    while (this._nextT < now + 0.6) {
+      this.scheduleStep(this._step, Math.max(0, this._nextT - now), stepDur);
+      this._step++;
+      this._nextT += stepDur;
+    }
+  },
+
+  scheduleStep(s, when, stepDur) {
+    const t = this._trk, root = t.root;
+    const note = (semi, oct = 0) => root * Math.pow(2, (semi + oct) / 12);
+    const boss = this._boss;
+
+    // bass
+    let b = t.bass[s % 32];
+    if (boss) b = [-24, null, -24, null][s % 4] ?? b;    // relentless pulse
+    if (b !== null && b !== undefined) {
+      Sfx.tone({ freq: note(b), type: boss ? "sawtooth" : t.bassType,
+                 dur: stepDur * 1.7, vol: boss ? 0.085 : 0.06, when });
+    }
+
+    // lead
+    const l = t.lead[s % 64];
+    if (l !== null && l !== undefined) {
+      const oct = this._lift ? 12 : 0;
+      const vol = boss ? 0.055 : 0.055;
+      Sfx.tone({ freq: note(l, boss ? -12 : oct), type: boss ? "square" : t.leadType,
+                 dur: stepDur * 1.6, vol, when });
+      if (this._lift) {   // soft echo a step behind — shimmery second-level feel
+        Sfx.tone({ freq: note(l, 12), type: "sine", dur: stepDur * 1.3, vol: 0.02, when: when + stepDur });
+      }
+    }
+
+    // drums
+    const drums = boss ? "drive" : t.drums;
+    if (drums !== "none") {
+      const inBar = s % 8;
+      if (inBar === 0) Sfx.tone({ freq: 62, type: "sine", dur: 0.09, vol: 0.075, when, slide: -25 });
+      if (inBar === 4 && (drums === "drive")) Sfx.noise({ dur: 0.07, vol: 0.05, when });
+      if (inBar % 2 === 1) Sfx.noise({ dur: 0.02, vol: drums === "drive" ? 0.022 : 0.012, when });
+    }
+  },
+
+  toggle() {
+    this.enabled = !this.enabled;
+    const s = Storage.getSettings();
+    s.music = this.enabled;
+    Storage.saveSettings(s);
+    return this.enabled;
+  },
+
   stop() {
-    if (this._loop) { clearInterval(this._loop); this._loop = null; }
+    if (this._pump) { clearInterval(this._pump); this._pump = null; }
     if (this._amb) { clearInterval(this._amb); this._amb = null; }
+    this._trk = null;
   },
 };

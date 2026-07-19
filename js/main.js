@@ -10,6 +10,7 @@ const App = {
 
   async init() {
     Sfx.enabled = Storage.getSettings().sound;
+    Music.enabled = Storage.getSettings().music !== false;
     GK.UI.onScreenChange = (name) => {
       Game.active = name === "game";
       if (name !== "game") Music.stop();
@@ -39,6 +40,12 @@ const App = {
   },
 
   showScreen(name) { GK.UI.showScreen(name); },
+
+  toggleMusic() {
+    const on = Music.toggle();
+    this.el("btn-music").textContent = on ? "🎵 Music: On" : "🔇 Music: Off";
+    Sfx.click();
+  },
 
   refreshSplash() {
     const last = GK.Profiles.lastProfile();
