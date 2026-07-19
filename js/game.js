@@ -322,7 +322,9 @@ const Game = {
     p.carrier = null; p.carrierDx = 0;
     if (!p.dead) for (const m of this.movers) {
       const top = m.y - m.h / 2;
-      if (p.vy >= -1 && Math.abs(p.y + p.h / 2 - top) < 5 &&
+      // generous 9px grab: an elevator resting on the ground (top 8px above
+      // the floor) must scoop up a player standing at its column
+      if (p.vy >= -1 && Math.abs(p.y + p.h / 2 - top) < 9 &&
           Math.abs(p.x - m.x) < (p.w + m.w) / 2) {
         p.carrier = m; p.carrierDx = m.dx;
         p.y = top - p.h / 2; p.vy = Math.min(p.vy, 0); p.grounded = true;
