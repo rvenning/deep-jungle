@@ -81,6 +81,25 @@ for (const [idx, lv] of LEVELS.entries()) {
     const missed = unreachable(lv.rows);
     assert.deepEqual(missed, [], `unreachable: ${missed.join(" ")}`);
   });
+
+  test(`${tag}: false-floor drops are shallow enough to jump back out`, () => {
+    // A '%' with open space below is a hidden-pit entry. The player's jump
+    // clears 2 tiles, so the floor must be within 2 rows below the '%', or
+    // the secret becomes a trap (shipped once in Temple Gates).
+    const rows = lv.rows, deep = [];
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] !== "%") continue;
+        const below = (rows[y + 1] || "")[x];
+        const openish = (ch) => ch === "." || !!ENTITY_CHARS[ch];
+        if (!openish(below)) continue;           // side-entry false wall — fine
+        let fy = y + 1;
+        while (fy < rows.length && openish((rows[fy] || "")[x])) fy++;
+        if (fy - y > 3) deep.push(`%@r${y}c${x} floor ${fy - y - 1} below`);
+      }
+    });
+    assert.deepEqual(deep, [], `trap pockets: ${deep.join(" ")}`);
+  });
 }
 
 // door tiles connected orthogonally form one group needing one key
