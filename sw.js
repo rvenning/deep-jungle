@@ -1,6 +1,6 @@
 // Deep Jungle service worker — network-first, cache fallback.
 // BUMP the cache name on ANY shell change or devices keep the old build.
-const CACHE = "deep-jungle-v7";
+const CACHE = "deep-jungle-v8";
 const SHELL = [
   ".",
   "index.html",
@@ -19,7 +19,7 @@ const SHELL = [
   "js/equipment.js",
   "js/levels.js",
   "js/physics.js",
-  "js/fx.js",
+  "lib/gk-fx.js",
   "js/audio.js",
   "js/storage.js",
   "js/player.js",
