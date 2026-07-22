@@ -176,6 +176,17 @@
 <script src="lib/gk-storage.js"></script>
 <script src="lib/gk-profiles.js"></script>
 <script src="lib/gk-pwa.js"></script>
+<script src="lib/gk-fx.js"></script>
+<script>
+// The juice layer now comes from the kit. Deep Jungle's fx.js was tuned
+// heavier and blockier than Brick Breaker's (which supplied the kit defaults),
+// so restore this game's own numbers -- nothing on screen should change.
+const Fx = GK.Fx.configure({
+  grav: 300, poolCap: 700, shakeMax: 10, shakeDecay: 22, shape: "square",
+  burstSpeed: 130, burstSize: 2.4, textSize: 11, textDy: -30, textCap: 30,
+});
+const Tween = GK.Tween;
+</script>
 <script src="js/firebase-config.js"></script>
 <!-- data registries -->
 <script src="js/tiles.js"></script>
@@ -184,7 +195,6 @@
 <script src="js/levels.js"></script>
 <!-- systems -->
 <script src="js/physics.js"></script>
-<script src="js/fx.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/player.js"></script>
